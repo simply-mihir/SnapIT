@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 
@@ -21,20 +22,40 @@ class Base(DeclarativeBase):
     """Declarative base for all ORM models."""
 
 
-def _make_engine() -> AsyncEngine:
+def _is_pgbouncer_url(url: str) -> bool:
     """
-    Build the async engine with pooling tuned for a busy redirect service.
+    Detect connection strings that route through pgbouncer in transaction
+    or statement pool mode (e.g. Supabase's Transaction Pooler on port
+    6543, or hosts under *.pooler.supabase.com). pgbouncer in these modes
+    does NOT support asyncpg's prepared-statement cache.
+    """
+    lowered = url.lower()
+    return (
+        ":6543/" in lowered
+        or ".pooler.supabase.com" in lowered
+        or "pgbouncer=true" in lowered
+    )
 
-    - pool_pre_ping avoids "server closed the connection unexpectedly"
-      after idle periods (common on managed Postgres).
-    - pool_size + max_overflow limits total connections so we don't
-      blow past provider quotas.
-    """
+
+def _make_engine() -> AsyncEngine:
     url = settings.DATABASE_URL
-    connect_args = {}
     if url.startswith("sqlite"):
-        # Test fallback — SQLite doesn't support pool args.
         return create_async_engine(url, echo=settings.DEBUG, future=True)
+
+    if _is_pgbouncer_url(url):
+        # pgbouncer (transaction mode) — disable prepared-statement cache
+        # and let pgbouncer do the pooling.
+        return create_async_engine(
+            url,
+            echo=settings.DEBUG,
+            future=True,
+            poolclass=NullPool,
+            connect_args={
+                "statement_cache_size": 0,
+                "prepared_statement_cache_size": 0,
+            },
+        )
+
     return create_async_engine(
         url,
         echo=settings.DEBUG,
@@ -43,7 +64,7 @@ def _make_engine() -> AsyncEngine:
         max_overflow=settings.DB_MAX_OVERFLOW,
         pool_timeout=settings.DB_POOL_TIMEOUT,
         pool_pre_ping=True,
-        connect_args=connect_args,
+        connect_args={},
     )
 
 
@@ -58,7 +79,6 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency yielding a scoped async session."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -68,13 +88,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """
-    Create tables on startup.
-
-    In production, prefer Alembic migrations — this is included so local
-    Docker Compose works out of the box without a migration step.
-    """
-    from app.models import url as _url_model  # noqa: F401 (ensure registration)
+    from app.models import url as _url_model  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
