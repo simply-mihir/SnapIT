@@ -189,3 +189,6 @@ Point your domain at the Render backend service if you want short URLs like `htt
 ## Licence
 
 MIT — do what you want.
+## Deployed Link
+
+https://snapit-url-shortener.netlify.app
