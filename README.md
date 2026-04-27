@@ -3,7 +3,7 @@
 ***
 
 <div align="center">
-  <h1>🔗 SnapIT: Scalable URL Shortener</h1>
+  <h1>🔗 SnapIT: URL Shortener</h1>
   <p><b>A production-ready, low-latency URL shortener with analytics and caching.</b></p>
 
 ![SnapIt screenshot](docs/screenshot.png)
