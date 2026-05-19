@@ -19,6 +19,7 @@ from app.routes import health, redirect, shorten
 from app.services.cache import cache
 from app.observability import setup_observability
 from app.db.database import engine
+from app.services.event_consumer import consumer as event_consumer
 
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
@@ -29,15 +30,17 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start/stop Redis + DB; create tables on first boot for local dev."""
+    """Start/stop Redis + DB + event consumer; create tables on first boot."""
     logger.info("Starting %s (env=%s)", settings.APP_NAME, settings.APP_ENV)
     await cache.connect()
     await init_db()
+    await event_consumer.start()
     logger.info("Startup complete.")
     try:
         yield
     finally:
         logger.info("Shutting down...")
+        await event_consumer.stop()
         await cache.disconnect()
 
 
