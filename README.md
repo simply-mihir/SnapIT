@@ -222,7 +222,23 @@ Deploying this stack for $0 is easy using modern cloud providers:
 * **Data Cleanup:** Implement a nightly Cron job to delete rows where `expires_at < now() - interval '7 days'` to prevent DB bloat.
 
 ---
-## 10.License: 
+
+## 10. Observability
+
+Production traffic is instrumented via OpenTelemetry, with traces and metrics
+exported to Grafana Cloud over OTLP.
+
+![SnapIt Grafana dashboard](docs/grafana-dashboard.png)
+
+The service emits:
+- **Distributed traces** — per-request flame graphs spanning FastAPI → SQLAlchemy → asyncpg → Redis
+- **Histogram metrics** — request duration P50 / P95 / P99 by method and status code
+- **Counter metrics** — request volume, error rate, cache operations
+
+
+## 11. License: 
 * MIT — do what you want.
-## 11.Deployed Link:
+
+
+## 12. Deployed Link:
 * https://snapit-url-shortener.netlify.app
