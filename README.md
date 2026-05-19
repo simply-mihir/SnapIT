@@ -5,6 +5,11 @@
 <div align="center">
   <h1>🔗 SnapIT: Scalable URL Shortener</h1>
   <p><b>A production-ready, low-latency URL shortener with analytics and caching.</b></p>
+  [Live demo →](https://snapit-prateek.netlify.app)
+
+<p align="center">
+  <img src="docs/screenshot.png" alt="SnapIt screenshot" width="800" />
+</p>
   
   <a href="https://snapit-url-shortener.netlify.app" target="_blank">
     <img src="https://img.shields.io/badge/Live_Demo-Netlify-00C7B7?style=for-the-badge&logo=netlify" alt="Live Demo">
