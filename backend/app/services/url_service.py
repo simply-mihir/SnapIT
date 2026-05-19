@@ -29,6 +29,8 @@ from app.core.utils import (
 from app.models.url import URL
 from app.services.cache import CacheClient
 
+from app.models.click_event import ClickEvent
+
 
 class URLService:
     def __init__(self, db: AsyncSession, cache: CacheClient):
@@ -158,6 +160,43 @@ class URLService:
         if url is None:
             raise URLNotFoundError(f"Short URL '{short_id}' not found.")
         return url
+    
+    async def get_click_breakdown(
+        self,
+        short_id: str,
+        dimension,
+        limit: int = 10,
+    ) -> list[tuple[str, int]]:
+        """
+        Aggregate click counts grouped by a categorical column.
+
+        `dimension` is a SQLAlchemy column expression (e.g. ClickEvent.device).
+        Returns [(label, count), ...] sorted by count descending.
+        Rows where the dimension is NULL are excluded.
+        """
+        stmt = (
+            select(dimension, func.count().label("count"))
+            .where(ClickEvent.short_id == short_id)
+            .where(dimension.is_not(None))
+            .group_by(dimension)
+            .order_by(func.count().desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return [(label, count) for label, count in result.all()]
+
+    async def get_recent_clicks(
+        self, short_id: str, limit: int = 10
+    ) -> list[ClickEvent]:
+        """Return the N most recent click events for a short_id."""
+        stmt = (
+            select(ClickEvent)
+            .where(ClickEvent.short_id == short_id)
+            .order_by(ClickEvent.occurred_at.desc())
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
 
     # ----- Internals -----
 

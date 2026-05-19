@@ -17,6 +17,15 @@ from app.services.cache import CacheClient, get_cache
 from app.services.rate_limiter import get_rate_limiter
 from app.services.url_service import URLService
 
+from app.schemas.url import (
+    BreakdownItem,
+    ClickEventSummary,
+    ShortenRequest,
+    ShortenResponse,
+    URLAnalytics,
+)
+from app.models.click_event import ClickEvent
+
 router = APIRouter(prefix="/api", tags=["urls"])
 
 
@@ -81,11 +90,18 @@ async def analytics(
     short_id: str,
     service: URLService = Depends(get_url_service),
 ) -> URLAnalytics:
-    """Return click-count and timestamps for a short link."""
+    """Return click count, timestamps, and breakdowns for a short link."""
     try:
         url = await service.get_analytics(short_id)
     except URLNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    # Aggregations from click_events
+    by_device = await service.get_click_breakdown(short_id, ClickEvent.device, limit=10)
+    by_browser = await service.get_click_breakdown(short_id, ClickEvent.browser, limit=10)
+    by_os = await service.get_click_breakdown(short_id, ClickEvent.os, limit=10)
+    by_referrer = await service.get_click_breakdown(short_id, ClickEvent.referrer, limit=5)
+    recent_clicks = await service.get_recent_clicks(short_id, limit=10)
 
     return URLAnalytics(
         short_id=url.short_id,
@@ -95,4 +111,9 @@ async def analytics(
         last_accessed_at=url.last_accessed_at,
         expires_at=url.expires_at,
         is_expired=url.is_expired(),
+        by_device=[BreakdownItem(label=lbl, count=n) for lbl, n in by_device],
+        by_browser=[BreakdownItem(label=lbl, count=n) for lbl, n in by_browser],
+        by_os=[BreakdownItem(label=lbl, count=n) for lbl, n in by_os],
+        by_referrer=[BreakdownItem(label=lbl, count=n) for lbl, n in by_referrer],
+        recent_clicks=[ClickEventSummary.model_validate(c) for c in recent_clicks],
     )

@@ -92,6 +92,23 @@ class ShortenResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class BreakdownItem(BaseModel):
+    """One bucket of a categorical breakdown — e.g. ('mobile', 42)."""
+    label: str
+    count: int
+
+
+class ClickEventSummary(BaseModel):
+    """Compact view of a single click event for the analytics endpoint."""
+    occurred_at: datetime
+    device: Optional[str] = None
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    referrer: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class URLAnalytics(BaseModel):
     """Analytics payload for GET /api/analytics/{short_id}."""
 
@@ -102,6 +119,13 @@ class URLAnalytics(BaseModel):
     last_accessed_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     is_expired: bool
+
+    # Event-derived breakdowns from click_events (empty until clicks roll in).
+    by_device: list[BreakdownItem] = []
+    by_browser: list[BreakdownItem] = []
+    by_os: list[BreakdownItem] = []
+    by_referrer: list[BreakdownItem] = []
+    recent_clicks: list[ClickEventSummary] = []
 
     model_config = ConfigDict(from_attributes=True)
 
