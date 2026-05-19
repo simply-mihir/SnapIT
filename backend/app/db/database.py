@@ -1,9 +1,7 @@
 """
 Async SQLAlchemy engine + session management.
-
-Uses an AsyncEngine with connection pooling for high-throughput reads.
-Session lifecycle is dependency-injected into FastAPI routes.
 """
+import uuid
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -23,12 +21,7 @@ class Base(DeclarativeBase):
 
 
 def _is_pgbouncer_url(url: str) -> bool:
-    """
-    Detect connection strings that route through pgbouncer in transaction
-    or statement pool mode (e.g. Supabase's Transaction Pooler on port
-    6543, or hosts under *.pooler.supabase.com). pgbouncer in these modes
-    does NOT support asyncpg's prepared-statement cache.
-    """
+    """Detect pgbouncer (Supabase Transaction Pooler) URLs."""
     lowered = url.lower()
     return (
         ":6543/" in lowered
@@ -43,8 +36,11 @@ def _make_engine() -> AsyncEngine:
         return create_async_engine(url, echo=settings.DEBUG, future=True)
 
     if _is_pgbouncer_url(url):
-        # pgbouncer (transaction mode) — disable prepared-statement cache
-        # and let pgbouncer do the pooling.
+        # pgbouncer in transaction mode:
+        #   1. disable asyncpg's and SQLAlchemy's statement caches
+        #   2. give every prepared statement a UNIQUE name so collisions
+        #      across pooled underlying Postgres connections are impossible
+        #   3. skip SQLAlchemy's own pool — pgbouncer is already pooling
         return create_async_engine(
             url,
             echo=settings.DEBUG,
@@ -53,9 +49,11 @@ def _make_engine() -> AsyncEngine:
             connect_args={
                 "statement_cache_size": 0,
                 "prepared_statement_cache_size": 0,
+                "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4()}__",
             },
         )
 
+    # Direct Postgres connection — regular pool.
     return create_async_engine(
         url,
         echo=settings.DEBUG,
@@ -89,6 +87,5 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     from app.models import url as _url_model  # noqa: F401
-
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
