@@ -184,9 +184,19 @@ class URLService:
 
     @staticmethod
     def _cache_ttl_for(url: URL) -> Optional[int]:
-        """Align cache TTL with expires_at so expired links leave cache naturally."""
+        """
+        Cache TTL strategy:
+        - Links with an expiration: cache for exactly that window. The link
+          and its cache entry die together — no stale reads possible.
+        - Permanent links: cache for 30 days, auto-renewed on every visit
+          (resolve() re-warms on miss) so popular links effectively live
+          forever.
+        LFU eviction in Upstash is the safety net for memory pressure:
+        cold/never-visited entries get pushed out before hot ones.
+        """
+        PERMANENT_TTL = 30 * 24 * 3600  # 30 days
         if url.expires_at is None:
-            return settings.CACHE_DEFAULT_TTL
+            return PERMANENT_TTL
         now = datetime.now(url.expires_at.tzinfo or timezone.utc)
         remaining = int((url.expires_at - now).total_seconds())
-        return max(1, min(remaining, settings.CACHE_DEFAULT_TTL))
+        return max(1, remaining)
