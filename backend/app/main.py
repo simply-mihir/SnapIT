@@ -17,6 +17,8 @@ from app.core.config import settings
 from app.db.database import init_db
 from app.routes import health, redirect, shorten
 from app.services.cache import cache
+from app.observability import setup_observability
+from app.db.database import engine
 
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
@@ -53,6 +55,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Wire up observability (no-op locally if OTEL env vars are not set).
+setup_observability(app, engine)
 
 # Order matters: API + health first, redirect catch-all last.
 app.include_router(shorten.router)
