@@ -144,11 +144,11 @@ Key knobs:
 
 ## Free-tier deployment
 
-### 1) Postgres (Supabase or Railway)
+### 1) Postgres (Supabase)
 
 **Supabase**: create project → Settings → Database → copy the "Connection pooling" URL. Replace prefix with `postgresql+asyncpg://` for SQLAlchemy.
 
-**Railway**: New Project → Provision Postgres → Variables → `DATABASE_URL`. Prefix with `postgresql+asyncpg://`.
+
 
 ### 2) Redis (Upstash)
 
