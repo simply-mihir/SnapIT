@@ -26,6 +26,7 @@ from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter,
 )
+from opentelemetry.instrumentation.system_metrics import SystemMetricsInstrumentor
 from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
@@ -77,5 +78,6 @@ def setup_observability(app: FastAPI, engine) -> None:
     SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
     AsyncPGInstrumentor().instrument()
     RedisInstrumentor().instrument()
+    SystemMetricsInstrumentor().instrument()
 
     logger.info("OpenTelemetry instrumentation enabled.")
