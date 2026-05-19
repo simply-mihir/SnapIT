@@ -227,6 +227,8 @@ Deploying this stack for $0 is easy using modern cloud providers:
 
 Production traffic is instrumented via OpenTelemetry, with traces and metrics
 exported to Grafana Cloud over OTLP.
+The Grafana dashboard config lives at [`docs/grafana/service-health.json`](docs/grafana/service-health.json)
+and can be re-imported into any Grafana instance via **Dashboards → New → Import**.
 
 ![SnapIt Grafana dashboard](docs/grafana-dashboard.png)
 
