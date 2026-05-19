@@ -2,36 +2,18 @@
 Redirect route — the latency-sensitive hot path.
 
 Lives at the app root (not /api) so short URLs look like https://host/abc123.
-We schedule analytics writes in the background so they never block redirect.
+Click analytics are produced as Redis Stream events; a background consumer
+materializes them into the click_events table asynchronously.
 """
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import URLExpiredError, URLNotFoundError
-from app.db.database import AsyncSessionLocal, get_session
 from app.routes.deps import get_url_service
-from app.services.cache import CacheClient, get_cache
+from app.services.event_producer import EventProducer, get_event_producer
 from app.services.url_service import URLService
 
 router = APIRouter(tags=["redirect"])
-
-
-async def _record_click_async(short_id: str) -> None:
-    """
-    Background task — opens its own session because the request-scoped one
-    will already be closed by the time BackgroundTasks runs.
-    """
-    async with AsyncSessionLocal() as session:
-        # Cache isn't needed here; we go straight to DB.
-        from app.services.cache import cache  # module-level singleton
-        service = URLService(db=session, cache=cache)
-        try:
-            await service.record_click(short_id)
-        except Exception:
-            # Analytics should never break the redirect path — swallow + log.
-            import logging
-            logging.exception("Failed to record click for %s", short_id)
 
 
 @router.get(
@@ -45,12 +27,13 @@ async def _record_click_async(short_id: str) -> None:
 )
 async def redirect(
     short_id: str,
+    request: Request,
     background_tasks: BackgroundTasks,
     service: URLService = Depends(get_url_service),
+    producer: EventProducer = Depends(get_event_producer),
 ) -> RedirectResponse:
     """Resolve short_id → original_url and 302 redirect."""
-    # Simple guard against obviously-bad paths (favicon, etc.) — cheaper
-    # than a DB round-trip.
+    # Cheap path filter — favicon, paths with dots/slashes, oversized IDs.
     if not short_id or len(short_id) > 64 or "." in short_id or "/" in short_id:
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -61,8 +44,14 @@ async def redirect(
     except URLExpiredError:
         raise HTTPException(status_code=410, detail="Short URL has expired")
 
-    # Fire-and-forget analytics.
-    background_tasks.add_task(_record_click_async, short_id)
+    # Fire-and-forget analytics — publishes to Redis stream; consumer
+    # processes asynchronously. Never blocks the redirect.
+    background_tasks.add_task(
+        producer.publish_click,
+        short_id=short_id,
+        user_agent=request.headers.get("user-agent"),
+        referrer=request.headers.get("referer"),  # HTTP spec misspells it
+    )
 
     return RedirectResponse(
         url=original_url,
