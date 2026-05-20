@@ -237,10 +237,22 @@ The service emits:
 - **Histogram metrics** — request duration P50 / P95 / P99 by method and status code
 - **Counter metrics** — request volume, error rate, cache operations
 
+## 11. Analytics Pipeline
 
-## 11. License: 
+Click analytics are recorded as events on a Redis stream, then drained into
+Postgres by a background consumer. The redirect endpoint never blocks on
+analytics writes.
+
+- **Producer:** [`backend/app/services/event_producer.py`](backend/app/services/event_producer.py) — non-blocking `XADD`
+- **Consumer:** [`backend/app/services/event_consumer.py`](backend/app/services/event_consumer.py) — batched `XREADGROUP` + bulk-insert
+- **Fact table:** [`backend/app/models/click_event.py`](backend/app/models/click_event.py) — star-schema design, indexed for time-series queries
+
+Per-link analytics (device, browser, OS, top referrers, recent clicks) are
+exposed via `GET /api/analytics/{short_id}`.
+
+## 12. License: 
 * MIT — do what you want.
 
 
-## 12. Deployed Link:
+## 13. Deployed Link:
 * https://snapit-url-shortener.netlify.app
