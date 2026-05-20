@@ -215,12 +215,13 @@ Deploying this stack for $0 is easy using modern cloud providers:
 ---
 
 ## 9. Production Notes
-**Before scaling to heavy production traffic, consider the following:**
-* **Migrations:** The `init_db()` call on startup is for local dev. In production, remove this call and manage schema changes strictly via **Alembic**.
-* **Scaling:** For High Availability (HA), run Uvicorn with multiple workers behind a reverse proxy. Because state lives in Postgres and Redis, the backend scales horizontally infinitely.
-* **Analytics Queuing:** Consider moving analytics from in-process background tasks to a robust queue (RQ, Arq, Celery, or AWS SQS) to prevent dropping click records during abrupt pod crashes.
-* **Data Cleanup:** Implement a nightly Cron job to delete rows where `expires_at < now() - interval '7 days'` to prevent DB bloat.
 
+The service is production-deployed, but a few items would tighten it further before scaling beyond current traffic:
+
+- **Migrations:** `init_db()` runs on startup for zero-friction local dev and current production needs. Once schema changes become frequent, swap this for explicit Alembic migrations gated in a separate step.
+- **High Availability:** the backend is stateless (state lives in Postgres + Redis), so it scales horizontally without code changes. To go from single-instance to multi-instance, run Uvicorn with multiple workers behind a reverse proxy. Redis consumer groups automatically load-balance the click-event stream across all consumers.
+- **Consumer isolation:** the Redis Streams consumer currently runs in-process with FastAPI. Splitting it into a dedicated worker service would let the redirect dyno and analytics worker scale independently — same `XREADGROUP` flow, just a separate process.
+- **Data retention:** add a nightly cleanup job to delete expired URL rows (`expires_at < now() - interval '7 days'`) and aged click events (e.g. `occurred_at < now() - interval '90 days'`) to keep Postgres lean.
 ---
 
 ## 10. Observability
