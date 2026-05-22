@@ -222,6 +222,9 @@ The service is production-deployed, but a few items would tighten it further bef
 - **High Availability:** the backend is stateless (state lives in Postgres + Redis), so it scales horizontally without code changes. To go from single-instance to multi-instance, run Uvicorn with multiple workers behind a reverse proxy. Redis consumer groups automatically load-balance the click-event stream across all consumers.
 - **Consumer isolation:** the Redis Streams consumer currently runs in-process with FastAPI. Splitting it into a dedicated worker service would let the redirect dyno and analytics worker scale independently — same `XREADGROUP` flow, just a separate process.
 - **Data retention:** add a nightly cleanup job to delete expired URL rows (`expires_at < now() - interval '7 days'`) and aged click events (e.g. `occurred_at < now() - interval '90 days'`) to keep Postgres lean.
+
+For deeper rationale on design choices, see [`docs/design/`](docs/design/):
+- [Short ID generation: Base62 vs Snowflake vs UUID](docs/design/id-generation.md)
 ---
 
 ## 10. Observability
