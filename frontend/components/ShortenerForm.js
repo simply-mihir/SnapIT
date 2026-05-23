@@ -64,6 +64,19 @@ export default function ShortenerForm() {
     }
   }
 
+  function handleDownloadQR() {
+  if (!result?.short_id) return;
+  const canvas = document.getElementById(`qr-${result.short_id}`);
+  if (!canvas) return;
+  const pngUrl = canvas.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.href = pngUrl;
+  a.download = `snapit-${result.short_id}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
   return (
     <div className="relative rounded-[28px] border border-ink-900/10 dark:border-cream-100/10 bg-cream-50/70 dark:bg-ink-800/60 backdrop-blur-xl shadow-glass-light dark:shadow-glass p-6 sm:p-8 animate-fade-in">
       {/* subtle top gradient accent */}
@@ -202,6 +215,27 @@ export default function ShortenerForm() {
               </button>
             </div>
 
+          {/* QR code preview + download */}
+          <div className="mt-5 flex flex-col items-center gap-3">
+  <div className="rounded-xl border border-ink-900/10 dark:border-cream-100/10 bg-white p-3 shadow-sm">
+    <QRCodeCanvas
+      id={`qr-${result.short_id}`}
+      value={result.short_url}
+      size={128}
+      bgColor="#ffffff"
+      fgColor="#1a1a1a"
+      level="M"
+      includeMargin={false}
+    />
+  </div>
+  <button
+    onClick={handleDownloadQR}
+    className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-ink-700/60 dark:text-cream-100/50 hover:text-ink-900 dark:hover:text-cream-50 transition-colors"
+  >
+    <DownloadIcon /> Download QR
+  </button>
+</div>
+</div>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700/60 dark:text-cream-100/50">
               <MetaChip label="Original">
                 <span className="truncate max-w-[220px] inline-block align-bottom">
@@ -222,7 +256,6 @@ export default function ShortenerForm() {
               )}
             </div>
           </div>
-        </div>
       )}
     </div>
   );
@@ -296,6 +329,20 @@ function CheckIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <path d="M3 8.5L6.5 12L13 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
