@@ -62,6 +62,7 @@
 * **Async Analytics:** Click-counts and `last_accessed` timestamps are recorded via fire-and-forget background tasks so redirects never block.
 * **Graceful Expiration:** Supports TTL on URLs, returning an `HTTP 410 Gone` status for expired links.
 * **Containerized:** Fully packaged with Docker Compose for a one-command local development environment.
+* **QR code download** — every short URL renders an inline QR code, downloadable as PNG for offline sharing.
 
 ---
 
