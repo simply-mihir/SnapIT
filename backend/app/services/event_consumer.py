@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 CONSUMER_GROUP = "snapit-consumers"
 BATCH_SIZE = 100      # max events per XREADGROUP call
-BLOCK_MS = 45_000      # block up to 1s waiting for new events
+BLOCK_MS = 45_000      # block up to 45s waiting for new events
 
 
 class EventConsumer:
