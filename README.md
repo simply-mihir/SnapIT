@@ -15,7 +15,7 @@
     </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
-    </a>a
+    </a>
   </p>
 
   <p>
@@ -116,7 +116,7 @@ graph TB
     end
 
     Browser -- "HTTPS" --> Netlify
-    Browser -- "/api/* " --> Render
+    Browser -- "/api/* + /{short_id}" --> Render
     Netlify -. "static assets" .-> Browser
 
     Render -- "cache-aside" --> Redis
@@ -287,7 +287,7 @@ flowchart TD
 | `GET`  | `/docs` | OpenAPI Swagger UI (auto-generated) |
 
 <details>
-<summary><b>📨 POST <code>/api/shorten</code> — request & response</b></summary>
+<summary><b> POST <code>/api/shorten</code> — request & response</b></summary>
 
 **Request:**
 ```json
