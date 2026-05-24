@@ -9,12 +9,18 @@
   --grid-color: rgba(18, 18, 18, 0.04);
   --halo-a: rgba(199, 154, 91, 0.22);    /* warm amber */
   --halo-b: rgba(120, 148, 160, 0.18);   /* cool slate */
+  --halo-c: rgba(230, 140, 100, 0.18);   /* warm peach */
+  --halo-d: rgba(220, 130, 180, 0.15);   /* soft rose */
+  --halo-e: rgba(245, 158, 11, 0.10);    /* amber accent */
 }
 
 .dark {
   --grid-color: rgba(255, 255, 255, 0.035);
   --halo-a: rgba(199, 154, 91, 0.18);
   --halo-b: rgba(90, 110, 130, 0.14);
+  --halo-c: rgba(230, 140, 100, 0.12);
+  --halo-d: rgba(220, 130, 180, 0.10);
+  --halo-e: rgba(245, 158, 11, 0.08); 
 }
 
 html, body {
@@ -60,6 +66,31 @@ body {
   width: 560px;
   height: 560px;
   background: var(--halo-b);
+}
+
+.halo-c {
+  top: 20%;
+  right: -10%;
+  width: 480px;
+  height: 480px;
+  background: var(--halo-c);
+}
+
+.halo-d {
+  bottom: 10%;
+  left: -10%;
+  width: 500px;
+  height: 500px;
+  background: var(--halo-d);
+}
+
+.halo-e {
+  top: 50%;
+  left: 40%;
+  width: 600px;
+  height: 600px;
+  background: var(--halo-e);
+  transform: translate(-50%, -50%);
 }
 
 /* Subtle film-grain texture layered over the gradient background */

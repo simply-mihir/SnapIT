@@ -5,8 +5,12 @@ export default function Home() {
   return (
     <div className="relative min-h-screen grain overflow-hidden">
       {/* Ambient background halos — rendered behind everything */}
+      {/* Ambient background halos — rendered behind everything */}
       <div className="halo halo-a animate-blob" aria-hidden="true" />
       <div className="halo halo-b animate-blob" aria-hidden="true" />
+      <div className="halo halo-c animate-blob" aria-hidden="true" style={{ animationDelay: "2s" }} />
+      <div className="halo halo-d animate-blob" aria-hidden="true" style={{ animationDelay: "4s" }} />
+      <div className="halo halo-e animate-blob" aria-hidden="true" style={{ animationDelay: "6s" }} />
 
       <main className="relative z-10 min-h-screen flex flex-col">
        {/* ——— Navigation ——— */}
