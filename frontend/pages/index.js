@@ -12,7 +12,7 @@ export default function Home() {
        {/* ——— Navigation ——— */}
 <nav className="w-full px-6 sm:px-10 py-6 flex items-center justify-between">
   
-    href="/"
+    <a href="/"
     className="group inline-flex items-center gap-3 rounded-full
                border border-ink-900/10 dark:border-cream-100/10
                bg-cream-50/40 dark:bg-ink-800/30 backdrop-blur-md
