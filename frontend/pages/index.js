@@ -23,8 +23,15 @@ export default function Home() {
             >
               SnapIT
             </span>
-            <span className="text-[11px] uppercase tracking-[0.28em] font-light text-ink-700/55 dark:text-cream-100/55">
-              URL Shortener
+            <span className="font-serif text-3xl sm:text-4xl font-black tracking-tight
+                         bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500
+                         bg-clip-text text-transparent
+                         drop-shadow-[0_4px_24px_rgba(245,158,11,0.35)]
+                         transition-all duration-500
+                         group-hover:tracking-normal
+                         group-hover:drop-shadow-[0_4px_32px_rgba(245,158,11,0.55)]"
+            >
+              : URL Shortener
             </span>
           </a>
           <ThemeToggle />
