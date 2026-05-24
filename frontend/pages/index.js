@@ -9,33 +9,28 @@ export default function Home() {
       <div className="halo halo-b animate-blob" aria-hidden="true" />
 
       <main className="relative z-10 min-h-screen flex flex-col">
-        {/* ——— Navigation ——— */}
-        <nav className="w-full px-6 sm:px-10 py-6 flex items-center justify-between">
-          <a href="/" className="group flex items-baseline gap-3">
-            <span
-              className="font-serif text-3xl sm:text-4xl font-black tracking-tight
-                         bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500
-                         bg-clip-text text-transparent
-                         drop-shadow-[0_4px_24px_rgba(245,158,11,0.35)]
-                         transition-all duration-500
-                         group-hover:tracking-normal
-                         group-hover:drop-shadow-[0_4px_32px_rgba(245,158,11,0.55)]"
-            >
-              SnapIT
-            </span>
-            <span className="font-serif text-3xl sm:text-4xl font-black tracking-tight
-                         bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500
-                         bg-clip-text text-transparent
-                         drop-shadow-[0_4px_24px_rgba(245,158,11,0.35)]
-                         transition-all duration-500
-                         group-hover:tracking-normal
-                         group-hover:drop-shadow-[0_4px_32px_rgba(245,158,11,0.55)]"
-            >
-              : URL Shortener
-            </span>
-          </a>
-          <ThemeToggle />
-        </nav>
+       {/* ——— Navigation ——— */}
+<nav className="w-full px-6 sm:px-10 py-6 flex items-center justify-between">
+  
+    href="/"
+    className="group inline-flex items-center gap-3 rounded-full
+               border border-ink-900/10 dark:border-cream-100/10
+               bg-cream-50/40 dark:bg-ink-800/30 backdrop-blur-md
+               px-4 sm:px-5 py-2 shadow-sm
+               transition-all duration-300
+               hover:shadow-md hover:bg-cream-50/70 dark:hover:bg-ink-800/50
+               hover:border-accent/30"
+  >
+    <span className="font-serif text-xl sm:text-2xl tracking-tight text-ink-900 dark:text-cream-50 leading-none">
+      Snap<span className="italic text-accent-deep dark:text-accent-soft font-normal">IT</span>
+    </span>
+    <span className="h-4 w-px bg-ink-900/15 dark:bg-cream-100/15" />
+    <span className="text-[10px] uppercase tracking-[0.3em] font-light text-ink-700/60 dark:text-cream-100/60">
+      URL Shortener
+    </span>
+  </a>
+  <ThemeToggle />
+</nav>
 
         {/* ——— Hero + Form ——— */}
         <section className="flex-1 flex items-center justify-center px-6 sm:px-10 pb-16">
