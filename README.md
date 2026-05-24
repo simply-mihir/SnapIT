@@ -15,9 +15,6 @@
     </a>
   </p>
 
-<img src="docs/screenshot1.png" alt="SnapIT screenshot" width="800" />
-<img src="docs/screenshot2.png" alt="SnapIT screenshot" width="800" />
-
   <p>
     <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=FastAPI&logoColor=white" alt="FastAPI">
     <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
@@ -29,6 +26,9 @@
     <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
     <img src="https://img.shields.io/badge/Tailwind-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind">
   </p>
+
+  <img src="docs/screenshot1.png" alt="SnapIT screenshot" width="800" />
+  <img src="docs/screenshot2.png" alt="SnapIT screenshot" width="800" />
 </div>
 
 ---
