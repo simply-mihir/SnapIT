@@ -4,7 +4,8 @@
     <b>A production-grade, event-driven URL shortener with sub-50ms redirects, distributed tracing, and per-link device analytics.</b>
   </p>
 
-  <img src="docs/screenshot.png" alt="SnapIT screenshot" width="800" />
+  <img src="docs/screenshot1.png" alt="SnapIT screenshot" width="800" />
+   <img src="docs/screenshot2.png" alt="SnapIT screenshot" width="800" />
 
   <p>
     <a href="https://snapit-url-shortener.netlify.app">
