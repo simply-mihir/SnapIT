@@ -3,10 +3,6 @@
   <p>
     <b>A production-grade, event-driven URL shortener with sub-50ms redirects, distributed tracing, and per-link device analytics.</b>
   </p>
-
-  <img src="docs/screenshot1.png" alt="SnapIT screenshot" width="800" />
-   <img src="docs/screenshot2.png" alt="SnapIT screenshot" width="800" />
-
   <p>
     <a href="https://snapit-url-shortener.netlify.app">
       <img src="https://img.shields.io/badge/Live_Demo-Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white" alt="Live Demo">
@@ -18,6 +14,9 @@
       <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
     </a>
   </p>
+
+<img src="docs/screenshot1.png" alt="SnapIT screenshot" width="800" />
+<img src="docs/screenshot2.png" alt="SnapIT screenshot" width="800" />
 
   <p>
     <img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=FastAPI&logoColor=white" alt="FastAPI">
