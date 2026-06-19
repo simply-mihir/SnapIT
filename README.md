@@ -523,11 +523,11 @@ Deploying SnapIT for **$0/month**:
 | Component | Provider | Compute | I/O |
 | :--- | :--- | :--- | :--- |
 | Backend (FastAPI) | Render Web Service | 0.5 vCPU · 512 MB RAM<br/>750h uptime / mo | 5 GB egress / mo |
-| Database (Postgres) | Supabase | shared | 500 MB storage<br/>2 GB egress / mo |
+| Database (Postgres) | Supabase | 60 connections (pooler) | 500 MB storage<br/>2 GB egress / mo |
 | Cache + Streams (Redis) | Upstash | 256 MB storage | 500k commands / mo |
-| Frontend (Next.js) | Netlify | n/a (static) | 100 GB bandwidth / mo |
-| Observability | Grafana Cloud | n/a | 10k metrics<br/>50 GB traces<br/>14d retention |
-| Keep-alive | cron-job.org | n/a | 14,400 executions / day |
+| Frontend (Next.js) | Netlify | static (CDN-served) | 100 GB bandwidth / mo |
+| Observability | Grafana Cloud | fully hosted | 10k metrics<br/>50 GB traces<br/>14d retention |
+| Keep-alive | cron-job.org | fully hosted | 14,400 executions / day |
 
 ### Setup steps
 
