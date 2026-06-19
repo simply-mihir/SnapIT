@@ -520,13 +520,14 @@ Frontend (`frontend/.env.example`):
 
 Deploying SnapIT for **$0/month**:
 
-| Component | Provider | Free Tier Limit |
-| Backend (FastAPI) | Render Web Service | 750h compute<br/>0.5 vCPU · 512 MB RAM<br/>5 GB egress / mo |
-| Database (Postgres) | Supabase | 500 MB storage, 2 GB egress |
-| Cache + Streams (Redis) | Upstash | 500k commands/month, 256 MB |
-| Frontend (Next.js) | Netlify | 100 GB bandwidth/month |
-| Observability | Grafana Cloud | 10k metrics, 50 GB traces, 14d retention |
-| Keep-alive | cron-job.org | 14,400 executions/day |
+| Component | Provider | Compute | I/O |
+| :--- | :--- | :--- | :--- |
+| Backend (FastAPI) | Render Web Service | 0.5 vCPU · 512 MB RAM<br/>750h uptime / mo | 5 GB egress / mo |
+| Database (Postgres) | Supabase | shared | 500 MB storage<br/>2 GB egress / mo |
+| Cache + Streams (Redis) | Upstash | 256 MB storage | 500k commands / mo |
+| Frontend (Next.js) | Netlify | n/a (static) | 100 GB bandwidth / mo |
+| Observability | Grafana Cloud | n/a | 10k metrics<br/>50 GB traces<br/>14d retention |
+| Keep-alive | cron-job.org | n/a | 14,400 executions / day |
 
 ### Setup steps
 
