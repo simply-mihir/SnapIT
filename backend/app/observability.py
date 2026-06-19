@@ -64,7 +64,7 @@ def setup_observability(app: FastAPI, engine) -> None:
     # --- Metrics: periodic OTLP push every 15 seconds ---
     metric_reader = PeriodicExportingMetricReader(
         OTLPMetricExporter(),
-        export_interval_millis=15_000,
+        export_interval_millis=60_000,
     )
     meter_provider = MeterProvider(
         resource=resource, metric_readers=[metric_reader]
