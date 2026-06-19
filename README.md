@@ -522,7 +522,14 @@ Deploying SnapIT for **$0/month**:
 
 | Component | Provider | Free Tier Limit |
 | :--- | :--- | :--- |
-| Backend (FastAPI) | Render Web Service | 750h/month, 0.5 vCPU, 512 MB, **5 GB egress/month** |
+| Component | Provider | Compute | I/O |
+| :--- | :--- | :--- | :--- |
+| Backend (FastAPI) | Render Web Service | 0.5 vCPU · 512 MB · 750h/mo | 5 GB egress/mo |
+| Database (Postgres) | Supabase | shared | 500 MB storage · 2 GB egress/mo |
+| Cache + Streams (Redis) | Upstash | 256 MB | 500k commands/mo |
+| Frontend (Next.js) | Netlify | static build | 100 GB bandwidth/mo |
+| Observability | Grafana Cloud | n/a | 10k metrics · 50 GB traces · 14d retention |
+| Keep-alive | cron-job.org | n/a | 14,400 executions/day |
 | Database (Postgres) | Supabase | 500 MB storage, 2 GB egress |
 | Cache + Streams (Redis) | Upstash | 500k commands/month, 256 MB |
 | Frontend (Next.js) | Netlify | 100 GB bandwidth/month |
@@ -600,7 +607,7 @@ The service is production-deployed, but a few items would tighten it further bef
 - **Consumer isolation:** the Redis Streams consumer currently runs in-process with FastAPI. Splitting it into a dedicated worker service would let the redirect dyno and analytics worker scale independently — same `XREADGROUP` flow, just a separate process.
 - **Data retention:** add a nightly cleanup job to delete expired URL rows (`expires_at < now() - interval '7 days'`) and aged click events (e.g. `occurred_at < now() - interval '90 days'`) to keep Postgres lean.
 - **Consumer block tuning:** `BLOCK_MS` is set to 5 minutes — sized to keep Redis command count well within Upstash's free tier while preserving at-least-once semantics. Tune lower for higher analytics freshness if traffic warrants.
-- **Observability cost tuning:** OpenTelemetry's metric export interval is set to 60s (vs. the SDK default of 15s) and traces use a 10% TraceIdRatioBased sampler — sized to keep outbound traffic within Render's free-tier 5 GB/month egress cap. Observability cost is tuned against actual platform limits, not set-and-forget — sampling rate and export cadence are deliberate engineering decisions that trade dashboard granularity against bandwidth budget.
+- **Observability cost tuning:** OpenTelemetry's metric export interval is set to 60s (vs. the SDK default of 15s) and OTLP exports use gzip compression — sized to keep outbound telemetry within Render's free-tier 5 GB/month egress cap while preserving 100% trace sampling. Observability cost is tuned against actual platform limits, not set-and-forget — metric cadence and on-wire compression are deliberate engineering decisions, not defaults.
 
 ---
 
