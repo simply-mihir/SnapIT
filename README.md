@@ -522,7 +522,7 @@ Deploying SnapIT for **$0/month**:
 
 | Component | Provider | Free Tier Limit |
 | :--- | :--- | :--- |
-| Backend (FastAPI) | Render Web Service | 750h/month, 0.5 vCPU, 512 MB |
+| Backend (FastAPI) | Render Web Service | 750h/month, 0.5 vCPU, 512 MB, **5 GB egress/month** |
 | Database (Postgres) | Supabase | 500 MB storage, 2 GB egress |
 | Cache + Streams (Redis) | Upstash | 500k commands/month, 256 MB |
 | Frontend (Next.js) | Netlify | 100 GB bandwidth/month |
@@ -600,6 +600,7 @@ The service is production-deployed, but a few items would tighten it further bef
 - **Consumer isolation:** the Redis Streams consumer currently runs in-process with FastAPI. Splitting it into a dedicated worker service would let the redirect dyno and analytics worker scale independently — same `XREADGROUP` flow, just a separate process.
 - **Data retention:** add a nightly cleanup job to delete expired URL rows (`expires_at < now() - interval '7 days'`) and aged click events (e.g. `occurred_at < now() - interval '90 days'`) to keep Postgres lean.
 - **Consumer block tuning:** `BLOCK_MS` is set to 5 minutes — sized to keep Redis command count well within Upstash's free tier while preserving at-least-once semantics. Tune lower for higher analytics freshness if traffic warrants.
+- **Observability cost tuning:** OpenTelemetry's metric export interval is set to 60s (vs. the SDK default of 15s) and traces use a 10% TraceIdRatioBased sampler — sized to keep outbound traffic within Render's free-tier 5 GB/month egress cap. Observability cost is tuned against actual platform limits, not set-and-forget — sampling rate and export cadence are deliberate engineering decisions that trade dashboard granularity against bandwidth budget.
 
 ---
 
