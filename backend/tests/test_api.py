@@ -188,13 +188,17 @@ async def test_analytics_click_count(app_client):
     for _ in range(3):
         await app_client.get(f"/{short_id}", follow_redirects=False)
 
-    # Clicks flow through a Redis stream + background consumer: poll briefly.
-    body = {}
-    for _ in range(50):
-        await asyncio.sleep(0.1)
-        a = await app_client.get(f"/api/analytics/{short_id}")
-        assert a.status_code == 200
-        body = a.json()
-        if body["click_count"] >= 1:
-            break
-    assert body["click_count"] >= 1  # at least one recorded
+    # Clicks are published to a Redis stream and materialized by a consumer.
+    # Drain the stream through the consumer's own batch handler (no timing).
+    from app.services.cache import cache
+    from app.services.event_consumer import consumer
+    from app.services.event_producer import STREAM_KEY
+
+    batch = await cache.client.xrange(STREAM_KEY)
+    assert len(batch) == 3, "each redirect should publish one click event"
+    await consumer._process_batch(batch)
+
+    a = await app_client.get(f"/api/analytics/{short_id}")
+    assert a.status_code == 200
+    body = a.json()
+    assert body["click_count"] == 3

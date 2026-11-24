@@ -52,6 +52,15 @@ async def app_client() -> AsyncGenerator[AsyncClient, None]:
     from app.services import event_consumer as consumer_mod
     consumer_mod.AsyncSessionLocal = SessionLocal
 
+    # No background consumer in tests: its blocking Redis read makes results
+    # timing-dependent (flaky on CI) and slows shutdown. Tests that need click
+    # events call consumer._process_batch() explicitly instead.
+    async def _noop_consumer():
+        return None
+
+    consumer_mod.consumer.start = _noop_consumer
+    consumer_mod.consumer.stop = _noop_consumer
+
     from app.db.database import Base
     import app.models  # noqa: F401  (registers users, urls, click_events)
     async with engine.begin() as conn:
@@ -60,6 +69,7 @@ async def app_client() -> AsyncGenerator[AsyncClient, None]:
     # Swap in fakeredis.
     if HAS_FAKEREDIS:
         cache_mod.cache._client = fakeredis_async.FakeRedis(decode_responses=True)
+        await cache_mod.cache._client.flushall()  # fakeredis servers can be shared across tests
     else:
         pytest.skip("fakeredis not installed")
 
