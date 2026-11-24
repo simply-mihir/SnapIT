@@ -8,7 +8,7 @@ materializes them into the click_events table asynchronously.
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
-from app.core.exceptions import URLExpiredError, URLNotFoundError
+from app.core.exceptions import URLDisabledError, URLExpiredError, URLNotFoundError
 from app.routes.deps import get_url_service
 from app.services.event_producer import EventProducer, get_event_producer
 from app.services.url_service import URLService
@@ -21,6 +21,7 @@ router = APIRouter(tags=["redirect"])
     responses={
         302: {"description": "Redirect to original URL"},
         404: {"description": "Not found"},
+        403: {"description": "Disabled by owner"},
         410: {"description": "Expired"},
     },
     include_in_schema=False,
@@ -41,6 +42,8 @@ async def redirect(
         original_url = await service.resolve(short_id)
     except URLNotFoundError:
         raise HTTPException(status_code=404, detail="Short URL not found")
+    except URLDisabledError:
+        raise HTTPException(status_code=403, detail="This link has been disabled by its owner")
     except URLExpiredError:
         raise HTTPException(status_code=410, detail="Short URL has expired")
 

@@ -1,7 +1,8 @@
 import { useState } from "react";
+import Link from "next/link";
 import { QRCodeCanvas } from "qrcode.react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { useAuth } from "../context/AuthContext";
+import { API_URL } from "../lib/api";
 
 const EXPIRY_UNITS = [
   { id: "minutes", label: "Min", hint: "minutes", max: 525600 },
@@ -10,6 +11,7 @@ const EXPIRY_UNITS = [
 ];
 
 export default function ShortenerForm() {
+  const { token, user, ready } = useAuth();
   const [originalUrl, setOriginalUrl] = useState("");
   const [customAlias, setCustomAlias] = useState("");
   const [expiresInValue, setExpiresInValue] = useState("");
@@ -38,7 +40,11 @@ export default function ShortenerForm() {
     try {
       const res = await fetch(`${API_URL}/api/shorten`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Optional: signed-in users get the link saved to their history.
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => ({}));
@@ -167,6 +173,28 @@ export default function ShortenerForm() {
           <span className="pointer-events-none absolute inset-0 btn-shimmer opacity-0 group-hover:opacity-100 animate-shimmer" />
         </button>
       </form>
+
+      {ready && (
+        <p className="mt-4 text-center text-[11px] text-ink-700/50 dark:text-cream-100/40">
+          {user ? (
+            <>
+              Signed in — new links are saved to your{" "}
+              <Link href="/history" className="underline decoration-accent/50 underline-offset-4 hover:text-ink-900 dark:hover:text-cream-50">
+                history
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              Want to find this link later?{" "}
+              <Link href="/login" className="underline decoration-accent/50 underline-offset-4 hover:text-ink-900 dark:hover:text-cream-50">
+                Sign in (optional)
+              </Link>{" "}
+              before shortening.
+            </>
+          )}
+        </p>
+      )}
 
       {error && (
         <div

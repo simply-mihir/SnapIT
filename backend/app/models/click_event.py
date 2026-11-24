@@ -17,6 +17,7 @@ from sqlalchemy import (
     BigInteger,
     DateTime,
     ForeignKey,
+    Integer,
     Index,
     String,
 )
@@ -30,7 +31,9 @@ class ClickEvent(Base):
 
     __tablename__ = "click_events"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
+    )
     short_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("urls.short_id", ondelete="CASCADE"),

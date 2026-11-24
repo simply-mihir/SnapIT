@@ -17,6 +17,7 @@ from app.core.exceptions import (
     AliasTakenError,
     InvalidAliasError,
     InvalidURLError,
+    URLDisabledError,
     URLExpiredError,
     URLNotFoundError,
 )
@@ -44,6 +45,7 @@ class URLService:
         original_url: str,
         custom_alias: Optional[str] = None,
         expires_in_seconds: Optional[int] = None,
+        user_id: Optional[int] = None,
     ) -> URL:
         """
         Create a new short URL.
@@ -79,6 +81,7 @@ class URLService:
             short_id=short_id,
             custom_alias=custom_alias,
             expires_at=expires_at,
+            user_id=user_id,
         )
         self.db.add(url)
         try:
@@ -126,7 +129,11 @@ class URLService:
             await self.cache.set_not_found(short_id)
             raise URLNotFoundError(f"Short URL '{short_id}' not found.")
 
-        # Step 3: expiration.
+        # Step 3: paused by owner (never cached, so resuming is instant too).
+        if not url.is_active:
+            raise URLDisabledError(f"Short URL '{short_id}' has been disabled.")
+
+        # Step 3b: expiration.
         if url.is_expired():
             raise URLExpiredError(f"Short URL '{short_id}' has expired.")
 
@@ -134,6 +141,42 @@ class URLService:
         ttl = self._cache_ttl_for(url)
         await self.cache.set_url(url.short_id, url.original_url, ttl_seconds=ttl)
         return url.original_url
+
+    # ----- Accounts: history + pause/resume -----
+
+    async def list_user_links(
+        self, user_id: int, limit: int = 100, offset: int = 0
+    ) -> tuple[list[URL], int]:
+        total = (
+            await self.db.execute(
+                select(func.count()).select_from(URL).where(URL.user_id == user_id)
+            )
+        ).scalar_one()
+        rows = await self.db.execute(
+            select(URL)
+            .where(URL.user_id == user_id)
+            .order_by(URL.created_at.desc(), URL.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(rows.scalars().all()), total
+
+    async def set_active(self, short_id: str, user_id: int, is_active: bool) -> URL:
+        """
+        Pause/resume a link. Only the owner may do this; anyone else (or an
+        anonymous link) gets "not found" so ownership isn't leaked.
+        """
+        url = await self._find_by_short_id_or_alias(short_id)
+        if url is None or url.user_id != user_id:
+            raise URLNotFoundError(f"Short URL '{short_id}' not found.")
+        url.is_active = is_active
+        await self.db.commit()
+        # The redirect hot path reads Redis first: drop the entry so a paused
+        # link stops working immediately. On resume the next hit re-warms it.
+        await self.cache.delete_url(url.short_id)
+        if url.custom_alias and url.custom_alias != url.short_id:
+            await self.cache.delete_url(url.custom_alias)
+        return url
 
     # ----- Analytics -----
 
@@ -236,6 +279,8 @@ class URLService:
         PERMANENT_TTL = 30 * 24 * 3600  # 30 days
         if url.expires_at is None:
             return PERMANENT_TTL
-        now = datetime.now(url.expires_at.tzinfo or timezone.utc)
-        remaining = int((url.expires_at - now).total_seconds())
+        expires_at = url.expires_at
+        if expires_at.tzinfo is None:  # SQLite returns naive datetimes; treat as UTC
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        remaining = int((expires_at - datetime.now(timezone.utc)).total_seconds())
         return max(1, remaining)

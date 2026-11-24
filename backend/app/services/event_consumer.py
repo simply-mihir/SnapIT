@@ -76,6 +76,7 @@ class EventConsumer:
         """Spawn the consumer task. Idempotent."""
         if self._task and not self._task.done():
             return
+        self._shutdown.clear()  # allow restart after a previous stop()
         await self._ensure_consumer_group()
         self._task = asyncio.create_task(self._run(), name="click-event-consumer")
         logger.info(

@@ -11,7 +11,15 @@ from app.core.exceptions import (
     RateLimitExceededError,
     URLNotFoundError,
 )
-from app.routes.deps import get_client_ip, get_url_service
+from typing import Optional
+
+from app.models.user import User
+from app.routes.deps import (
+    get_client_ip,
+    get_current_user,
+    get_optional_user,
+    get_url_service,
+)
 from app.schemas.url import ShortenRequest, ShortenResponse, URLAnalytics
 from app.services.cache import CacheClient, get_cache
 from app.services.rate_limiter import get_rate_limiter
@@ -44,6 +52,7 @@ async def shorten(
     request: Request,
     service: URLService = Depends(get_url_service),
     cache: CacheClient = Depends(get_cache),
+    user: Optional[User] = Depends(get_optional_user),
 ) -> ShortenResponse:
     """Create a new short URL."""
     # Rate-limit per IP before doing any DB work.
@@ -63,6 +72,7 @@ async def shorten(
             original_url=str(payload.original_url),
             custom_alias=payload.custom_alias,
             expires_in_seconds=payload.expires_in_seconds(),
+            user_id=user.id if user else None,
         )
     except InvalidURLError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -117,3 +127,51 @@ async def analytics(
         by_referrer=[BreakdownItem(label=lbl, count=n) for lbl, n in by_referrer],
         recent_clicks=[ClickEventSummary.model_validate(c) for c in recent_clicks],
     )
+
+
+# ----- Accounts: history + pause/resume (signed-in users only) -----
+
+from app.schemas.auth import LinkListResponse, LinkOut, LinkUpdateRequest  # noqa: E402
+
+
+def _link_out(url) -> LinkOut:
+    return LinkOut(
+        short_id=url.short_id,
+        short_url=f"{settings.BASE_URL.rstrip('/')}/{url.short_id}",
+        original_url=url.original_url,
+        custom_alias=url.custom_alias,
+        created_at=url.created_at,
+        expires_at=url.expires_at,
+        click_count=url.click_count,
+        last_accessed_at=url.last_accessed_at,
+        is_active=url.is_active,
+        is_expired=url.is_expired(),
+    )
+
+
+@router.get("/me/links", response_model=LinkListResponse)
+async def my_links(
+    limit: int = 100,
+    offset: int = 0,
+    user: User = Depends(get_current_user),
+    service: URLService = Depends(get_url_service),
+) -> LinkListResponse:
+    """All links created by the signed-in user, newest first."""
+    limit = max(1, min(limit, 200))
+    items, total = await service.list_user_links(user.id, limit=limit, offset=max(0, offset))
+    return LinkListResponse(items=[_link_out(u) for u in items], total=total)
+
+
+@router.patch("/links/{short_id}", response_model=LinkOut)
+async def update_link(
+    short_id: str,
+    payload: LinkUpdateRequest,
+    user: User = Depends(get_current_user),
+    service: URLService = Depends(get_url_service),
+) -> LinkOut:
+    """Pause (`is_active: false`) or resume (`true`) one of your links."""
+    try:
+        url = await service.set_active(short_id, user.id, payload.is_active)
+    except URLNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return _link_out(url)

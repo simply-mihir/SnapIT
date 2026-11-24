@@ -31,3 +31,37 @@ def get_client_ip(request: Request) -> str:
     if real_ip:
         return real_ip.strip()
     return request.client.host if request.client else "unknown"
+
+
+# ----- Auth dependencies -----
+
+from typing import Optional  # noqa: E402
+
+from fastapi import Header, HTTPException, status  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+
+from app.core.security import decode_access_token  # noqa: E402
+from app.models.user import User  # noqa: E402
+
+
+async def get_optional_user(
+    authorization: Optional[str] = Header(default=None),
+    db: AsyncSession = Depends(get_session),
+) -> Optional[User]:
+    """The signed-in user, or None for anonymous callers / bad tokens."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    user_id = decode_access_token(authorization[7:].strip())
+    if user_id is None:
+        return None
+    return (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+
+
+async def get_current_user(user: Optional[User] = Depends(get_optional_user)) -> User:
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sign in required.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user

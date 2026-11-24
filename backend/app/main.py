@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db.database import init_db
-from app.routes import health, redirect, shorten
+from app.routes import auth, health, redirect, shorten
 from app.services.cache import cache
 from app.observability import setup_observability
 from app.db.database import engine
@@ -32,6 +32,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Start/stop Redis + DB + event consumer; create tables on first boot."""
     logger.info("Starting %s (env=%s)", settings.APP_NAME, settings.APP_ENV)
+    if (
+        settings.APP_ENV.lower() not in ("development", "dev", "test", "testing")
+        and settings.JWT_SECRET.startswith("dev-insecure")
+    ):
+        # Tokens signed with the public default could be forged by anyone.
+        raise RuntimeError("Set JWT_SECRET to a long random string (e.g. `openssl rand -hex 32`).")
     await cache.connect()
     await init_db()
     await event_consumer.start()
@@ -55,7 +61,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -64,6 +70,7 @@ setup_observability(app, engine)
 
 # Order matters: API + health first, redirect catch-all last.
 app.include_router(shorten.router)
+app.include_router(auth.router)
 app.include_router(health.router)
 app.include_router(redirect.router)
 

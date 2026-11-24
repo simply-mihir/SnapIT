@@ -27,6 +27,22 @@ class URLExpiredError(URLShortenerError):
     """Raised when a short link is past its expires_at."""
 
 
+class URLDisabledError(URLShortenerError):
+    """Raised when the owner has paused a short link."""
+
+
+class AuthError(URLShortenerError):
+    """Bad credentials / invalid or missing token."""
+
+
+class UserExistsError(URLShortenerError):
+    """Username or email already registered."""
+
+
+class InvalidCredentialsFormatError(URLShortenerError):
+    """Username / password failed validation."""
+
+
 class RateLimitExceededError(URLShortenerError):
     """Raised when a client exceeds the configured rate limit."""
 

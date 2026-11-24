@@ -17,6 +17,12 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
+def _aware(dt):
+    """SQLite drops tzinfo; the API contract is UTC, so treat naive as UTC."""
+    from datetime import timezone
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 async def test_shorten_and_redirect(app_client):
     resp = await app_client.post(
         "/api/shorten",
@@ -137,7 +143,7 @@ async def test_expires_in_minutes(app_client):
 
     # Sanity: the expires_at should be between now and now+60min.
     from datetime import datetime, timezone, timedelta
-    expires_at = datetime.fromisoformat(body["expires_at"].replace("Z", "+00:00"))
+    expires_at = _aware(datetime.fromisoformat(body["expires_at"].replace("Z", "+00:00")))
     now = datetime.now(timezone.utc)
     assert timedelta(minutes=25) <= (expires_at - now) <= timedelta(minutes=35)
 
@@ -153,7 +159,7 @@ async def test_expires_in_hours(app_client):
     )
     assert resp.status_code == 201, resp.text
     from datetime import datetime, timezone, timedelta
-    expires_at = datetime.fromisoformat(resp.json()["expires_at"].replace("Z", "+00:00"))
+    expires_at = _aware(datetime.fromisoformat(resp.json()["expires_at"].replace("Z", "+00:00")))
     now = datetime.now(timezone.utc)
     assert timedelta(hours=5, minutes=55) <= (expires_at - now) <= timedelta(hours=6, minutes=5)
 
@@ -166,7 +172,7 @@ async def test_legacy_expires_in_days_still_works(app_client):
     )
     assert resp.status_code == 201, resp.text
     from datetime import datetime, timezone, timedelta
-    expires_at = datetime.fromisoformat(resp.json()["expires_at"].replace("Z", "+00:00"))
+    expires_at = _aware(datetime.fromisoformat(resp.json()["expires_at"].replace("Z", "+00:00")))
     now = datetime.now(timezone.utc)
     assert timedelta(days=1, hours=23) <= (expires_at - now) <= timedelta(days=2, hours=1)
 
@@ -182,10 +188,13 @@ async def test_analytics_click_count(app_client):
     for _ in range(3):
         await app_client.get(f"/{short_id}", follow_redirects=False)
 
-    # BackgroundTasks run after the response — give them a beat.
-    await asyncio.sleep(0.2)
-
-    a = await app_client.get(f"/api/analytics/{short_id}")
-    assert a.status_code == 200
-    body = a.json()
+    # Clicks flow through a Redis stream + background consumer: poll briefly.
+    body = {}
+    for _ in range(50):
+        await asyncio.sleep(0.1)
+        a = await app_client.get(f"/api/analytics/{short_id}")
+        assert a.status_code == 200
+        body = a.json()
+        if body["click_count"] >= 1:
+            break
     assert body["click_count"] >= 1  # at least one recorded

@@ -7,18 +7,29 @@ import { useEffect, useState } from "react";
 export default function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
+  const [loaded, setLoaded] = useState(false);
+
+  // Restore the saved choice (falls back to the OS preference). The Layout
+  // remounts on every page change, so this keeps the theme consistent.
   useEffect(() => {
-    const prefersDark =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setDark(prefersDark);
+    let saved = null;
+    try {
+      saved = window.localStorage.getItem("snapit_theme");
+    } catch {}
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setDark(saved ? saved === "dark" : prefersDark);
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
+    if (!loaded) return;
     const root = document.documentElement;
     if (dark) root.classList.add("dark");
     else root.classList.remove("dark");
-  }, [dark]);
+    try {
+      window.localStorage.setItem("snapit_theme", dark ? "dark" : "light");
+    } catch {}
+  }, [dark, loaded]);
 
   return (
     <button

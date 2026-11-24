@@ -86,6 +86,23 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    from app.models import url as _url_model  # noqa: F401
+    from app.models import ClickEvent, URL, User  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if conn.dialect.name == "postgresql":
+            # create_all never alters existing tables, so add new columns
+            # idempotently for databases created before accounts existed.
+            await conn.exec_driver_sql(
+                "ALTER TABLE urls ADD COLUMN IF NOT EXISTS user_id BIGINT "
+                "REFERENCES users(id) ON DELETE SET NULL"
+            )
+            await conn.exec_driver_sql(
+                "ALTER TABLE urls ADD COLUMN IF NOT EXISTS is_active BOOLEAN "
+                "NOT NULL DEFAULT TRUE"
+            )
+            await conn.exec_driver_sql(
+                "CREATE INDEX IF NOT EXISTS ix_urls_user_id ON urls (user_id)"
+            )
+            # Supabase exposes public tables over its REST API; lock the new
+            # table down so the anon key can never read password hashes.
+            await conn.exec_driver_sql("ALTER TABLE users ENABLE ROW LEVEL SECURITY")

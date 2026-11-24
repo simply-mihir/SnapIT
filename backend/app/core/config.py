@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     SHORT_ID_LENGTH: int = 7
     SHORT_ID_MAX_RETRIES: int = 5
 
+    # Auth (optional accounts). Set JWT_SECRET to a long random string in production.
+    JWT_SECRET: str = Field(default="dev-insecure-secret-change-me-in-prod-0000")
+    JWT_EXPIRE_DAYS: int = Field(default=30)
+    # Google OAuth client ID (public). Leave empty to disable "Sign in with Google".
+    GOOGLE_CLIENT_ID: str = Field(default="")
+    # Stricter rate limit for register/login attempts, per IP per window.
+    AUTH_RATE_LIMIT_MAX_REQUESTS: int = Field(default=10)
+
     # CORS — stored as raw comma-separated string; split via the property below.
     # Kept as str (not List[str]) because pydantic-settings tries to json.loads()
     # list-typed env vars before validators run, which breaks `a,b,c` input.

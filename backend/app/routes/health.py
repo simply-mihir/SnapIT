@@ -5,6 +5,8 @@ Liveness + readiness endpoints.
 /health/ready verifies Postgres and Redis are reachable, which is what
 a load balancer should use to decide whether to send traffic.
 """
+import os
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -18,7 +20,9 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 @router.get("/live")
 async def liveness() -> dict:
-    return {"status": "ok"}
+    # RENDER_GIT_COMMIT is set by Render; the CI/CD workflow polls this to
+    # confirm the new commit is the one actually serving traffic.
+    return {"status": "ok", "commit": os.getenv("RENDER_GIT_COMMIT")}
 
 
 @router.get("/ready")

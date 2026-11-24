@@ -48,9 +48,12 @@ async def app_client() -> AsyncGenerator[AsyncClient, None]:
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
     db_mod.engine = engine
     db_mod.AsyncSessionLocal = SessionLocal
+    # The click consumer imported AsyncSessionLocal by name; point it at the test DB too.
+    from app.services import event_consumer as consumer_mod
+    consumer_mod.AsyncSessionLocal = SessionLocal
 
     from app.db.database import Base
-    from app.models import url as _url_model  # noqa
+    import app.models  # noqa: F401  (registers users, urls, click_events)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

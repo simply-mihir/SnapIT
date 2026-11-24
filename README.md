@@ -7,6 +7,9 @@
     <a href="https://snapit-url-shortener.netlify.app">
       <img src="https://img.shields.io/badge/Live_Demo-Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white" alt="Live Demo">
     </a>
+    <a href="https://github.com/simply-mihir/SnapIT/actions/workflows/deploy.yml">
+      <img src="https://github.com/simply-mihir/SnapIT/actions/workflows/deploy.yml/badge.svg" alt="CI & Deploy">
+    </a>
     <a href="https://github.com/simply-mihir/SnapIT/releases">
       <img src="https://img.shields.io/badge/Latest_Release-v1.3.0-2ea44f?style=for-the-badge&logo=github&logoColor=white" alt="Latest Release">
     </a>
@@ -281,7 +284,15 @@ flowchart TD
 | :--- | :--- | :--- |
 | `POST` | `/api/shorten` | Create a short URL (optionally with custom alias + expiration) |
 | `GET`  | `/api/analytics/{short_id}` | Retrieve enriched analytics — clicks, device/browser/OS breakdown, recent events |
-| `GET`  | `/{short_id}` | 302 Redirect to original (404 if missing, 410 if expired) |
+| `GET`  | `/{short_id}` | 302 Redirect to original (404 if missing, 403 if paused by its owner, 410 if expired) |
+| `POST` | `/api/auth/register` | *Optional accounts.* Create a username + password account → JWT |
+| `POST` | `/api/auth/login` | Sign in with username (or email) + password → JWT |
+| `POST` | `/api/auth/google` | Sign in with a Google ID token → JWT (enabled when `GOOGLE_CLIENT_ID` is set) |
+| `GET`  | `/api/auth/me` | Current user (requires `Authorization: Bearer <jwt>`) |
+| `GET`  | `/api/me/links` | The signed-in user's link history, newest first |
+| `PATCH`| `/api/links/{short_id}` | Owner only. Body `{"is_active": false}` pauses a link, `true` resumes it |
+
+> `POST /api/shorten` stays fully anonymous. If a valid bearer token is sent, the link is also attached to that user's history.
 | `GET`  | `/health/live` | Liveness probe — process is alive |
 | `GET`  | `/health/ready` | Readiness probe — verifies Postgres + Redis reachable |
 | `GET`  | `/docs` | OpenAPI Swagger UI (auto-generated) |
@@ -378,6 +389,22 @@ flowchart TD
 | `expires_at` | `timestamptz` | Indexed (for cleanup jobs), nullable |
 | `click_count` | `integer` | Default 0, bumped by consumer in batches |
 | `last_accessed_at` | `timestamptz` | Nullable, updated by consumer |
+| `user_id` | `bigint` | FK → `users.id` `ON DELETE SET NULL`, nullable (NULL = anonymous link) |
+| `is_active` | `boolean` | Default true. `false` = paused by owner; redirects return 403 |
+
+### Table: `users` (optional accounts)
+
+| Column | Type | Notes |
+| :--- | :--- | :--- |
+| `id` | `bigint` | PK |
+| `username` | `varchar(32)` | Unique, nullable (Google-only accounts have none) |
+| `email` | `varchar(320)` | Unique, nullable |
+| `display_name` | `varchar(128)` | Nullable |
+| `password_hash` | `varchar(256)` | scrypt; NULL for Google-only accounts |
+| `google_sub` | `varchar(64)` | Unique, nullable |
+| `created_at` | `timestamptz` | Default `now()` |
+
+RLS is enabled on `users` at startup so Supabase's public REST API can never expose password hashes.
 
 ### Table: `click_events` (fact)
 
@@ -501,6 +528,8 @@ Backend (`backend/.env.example`):
 | `CORS_ORIGINS` | Comma-separated allowed frontend origins |
 | `RATE_LIMIT_MAX_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS` | Per-IP throttle |
 | `CACHE_DEFAULT_TTL` | Default Redis TTL for cached URLs (seconds) |
+| `JWT_SECRET` | **Required outside development** (app refuses to boot with the default). Long random string, e.g. `openssl rand -hex 32` |
+| `GOOGLE_CLIENT_ID` | Optional. Google OAuth *Web* client ID; enables "Continue with Google". Add your Netlify URL under *Authorized JavaScript origins* |
 | `SHORT_ID_LENGTH` | Base62 length (default 7 → 62⁷ ≈ 3.5T keyspace) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Grafana Cloud OTLP gateway URL |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Basic <base64>` for OTLP auth |
@@ -542,6 +571,31 @@ Deploying SnapIT for **$0/month**:
 5. **Observability (Grafana Cloud):** Sign up → create OTLP token with `metrics:write`, `traces:write` scopes → set the five `OTEL_*` env vars on Render → import `docs/grafana/service-health.json` as a dashboard.
 
 6. **Keep-alive (cron-job.org):** Create a job hitting `https://<your-backend>.onrender.com/health/ready` every 10 minutes. This prevents Render's 15-minute cold-start sleep AND keeps Supabase from auto-pausing after 7 days of idle.
+
+7. **Supabase keep-alive (cron-job.org, no repo/Render dependency):** Create a second cron-job.org job, every 12 hours:
+   - URL: `https://<project-ref>.supabase.co/rest/v1/urls?select=id&limit=1`
+   - Method: `GET`
+   - Headers: `apikey: <anon public key>` and `Authorization: Bearer <anon public key>` (Supabase → Project Settings → API; the anon key is public by design)
+   - Expect status `200` (RLS returns `[]`, which still counts as a request to the project). Enable failure notifications.
+
+8. **CI/CD (GitHub Actions):** [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs on every push to `main`: backend tests → frontend build → redeploy Render → redeploy Netlify → wait until the live backend reports the pushed commit (`/health/live` includes `commit`). Watch it on the repo's **Actions** tab or the **Deployments** panel on the repo home page. Pull requests only run tests + build. One-time setup:
+   - **Render:** service → Settings → *Deploy Hook* → copy the URL. Also set *Auto-Deploy* to **Off** so the workflow is the only thing deploying (otherwise every push deploys twice, and untested code can ship).
+   - **Netlify:** project → Build & deploy → *Build hooks* → add one for `main` → copy the URL. (If a Netlify build hook isn't available, the job skips with a warning and Netlify's own Git integration keeps deploying on push.)
+   - **GitHub:** repo → Settings → Secrets and variables → Actions:
+
+     *Secrets* tab (hook URLs act like passwords):
+
+     | Secret | Value |
+     | :--- | :--- |
+     | `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL |
+     | `NETLIFY_BUILD_HOOK_URL` | Netlify build hook URL (optional, see above) |
+
+     *Variables* tab (public URLs, shown as deployment links):
+
+     | Variable | Value |
+     | :--- | :--- |
+     | `BACKEND_URL` | `https://<your-backend>.onrender.com` (no trailing slash) |
+     | `FRONTEND_URL` | `https://<your-site>.netlify.app` |
 
 ---
 
@@ -608,6 +662,7 @@ The service is production-deployed, but a few items would tighten it further bef
 
 In-depth rationale for non-obvious architectural choices lives in [`docs/design/`](docs/design/):
 
+- [**Accounts, history & pause/resume**: roadmap and design decisions](docs/design/accounts-and-history.md)
 - [**Short ID generation**: Base62 vs Snowflake vs UUID](docs/design/id-generation.md) — why we picked 7-character random Base62 with collision retry, and when we'd revisit.
 
 ---

@@ -9,7 +9,7 @@ Indexes:
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -18,7 +18,9 @@ from app.db.database import Base
 class URL(Base):
     __tablename__ = "urls"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
+    )
     original_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     short_id: Mapped[str] = mapped_column(
         String(64), unique=True, nullable=False, index=True
@@ -35,6 +37,15 @@ class URL(Base):
     click_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_accessed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+    # Optional owner. NULL = created anonymously (the default, original behavior).
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Owner can pause a link; paused links return 403 on redirect.
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
     )
 
     __table_args__ = (

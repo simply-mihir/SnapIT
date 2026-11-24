@@ -1,0 +1,123 @@
+name: CI & Deploy
+
+# On every push to main: test -> build -> redeploy backend (Render) and
+# frontend (Netlify) -> confirm the new version is live.
+# Status shows up on the repo's Actions tab, the commit's check mark, and the
+# "Deployments" panel on the repo home page.
+#
+# Pull requests only run the tests/build; they never deploy.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  deploy-backend:
+    name: Deploy backend (Render)
+    needs: [backend-tests, frontend-build]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: backend-production
+      url: ${{ vars.BACKEND_URL }}
+    steps:
+      - name: Trigger Render deploy of this exact commit
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::Secret RENDER_DEPLOY_HOOK_URL is not set (see README: CI/CD)"; exit 1
+          fi
+          curl --fail --silent --show-error -X POST "${HOOK}&ref=${GITHUB_SHA}" > /dev/null
+          echo "Deploy requested for ${GITHUB_SHA}"
+
+      - name: Wait until the new commit is live
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          if [ -z "$BACKEND_URL" ]; then
+            echo "::error::Repository variable BACKEND_URL is not set (see README: CI/CD)"; exit 1
+          fi
+          URL="${BACKEND_URL%/}/health/live"
+          # Render free tier builds can take several minutes.
+          for i in $(seq 1 80); do
+            BODY=$(curl --silent --max-time 20 "$URL" || true)
+            if echo "$BODY" | grep -q "\"commit\":\"${GITHUB_SHA}\""; then
+              echo "Live: $BODY"; exit 0
+            fi
+            echo "[$i/80] not live yet: ${BODY:-no response}"
+            sleep 15
+          done
+          echo "::error::Backend did not report commit ${GITHUB_SHA} within 20 minutes. Check the Render deploy logs."
+          exit 1
+
+      - name: Readiness check (database + Redis)
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: curl --fail --silent --show-error --max-time 60 "${BACKEND_URL%/}/health/ready"
+
+  deploy-frontend:
+    name: Deploy frontend (Netlify)
+    needs: [backend-tests, frontend-build]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: frontend-production
+      url: ${{ vars.FRONTEND_URL }}
+    steps:
+      - name: Trigger Netlify build
+        env:
+          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::NETLIFY_BUILD_HOOK_URL is not set, skipping. Netlify's own Git integration (if enabled) still deploys on push."
+            exit 0
+          fi
+          curl --fail --silent --show-error -X POST -d '{}' "$HOOK" > /dev/null
+          echo "Netlify build requested"

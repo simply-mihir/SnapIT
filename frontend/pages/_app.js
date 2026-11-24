@@ -1,5 +1,6 @@
 import "../styles/globals.css";
 import Head from "next/head";
+import { AuthProvider } from "../context/AuthContext";
 
 export default function App({ Component, pageProps }) {
   return (
@@ -13,7 +14,9 @@ export default function App({ Component, pageProps }) {
         />
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
       </Head>
-      <Component {...pageProps} />
+      <AuthProvider>
+        <Component {...pageProps} />
+      </AuthProvider>
     </>
   );
 }
